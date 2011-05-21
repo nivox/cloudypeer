@@ -27,6 +27,7 @@ import cloudypeer.store.StoreEntryDiffData;
 import cloudypeer.store.StoreEntryMetadata;
 import cloudypeer.store.StoreException;
 import org.apache.log4j.Logger;
+import java.net.SocketTimeoutException;
 
 
 /**
@@ -90,9 +91,9 @@ public class CloudPushPullAntiEntropyBroadcast extends CloudEnabledAntiEntropyBr
    * Implementation of util methods
    ***********************************************************************/
 
-  private long timeUntillNextActiveCycle() {
-    long delta = (lastCycleTimestamp + (period * 1000)) - System.currentTimeMillis();
-    return (delta > 0) ? delta : 0;
+  private int timeUntillNextActiveCycle() {
+    int delta = (int) ((lastCycleTimestamp + (period * 1000)) - System.currentTimeMillis());
+    return (delta > 0) ? (delta / 1000) : 0;
   }
 
   /* *********************************************************************
@@ -147,19 +148,20 @@ public class CloudPushPullAntiEntropyBroadcast extends CloudEnabledAntiEntropyBr
     }
   }
 
-  private void resolveDifferencePeer(PeerNode p) throws InterruptedException, NetworkException {
-    NetworkConnection conn = null;
+  private void resolveDifferencePeer(PeerNode p)
+    throws InterruptedException, NetworkException, SocketTimeoutException, IOException
+  {
+    NetworkConnection conn = netHelper.createConnection(this, p, CONNECTION_TIMEOUT);
     Map<String, StoreEntryMetadata> metadataToUpdate;
     try {
       logger.trace("Resolving difference with " + p);
-      conn = netHelper.createConnection(this, p, CONNECTION_TIMEOUT);
       HashMap<String, StoreEntryMetadata> entriesMetadata = store.getStoreEntriesMetadata();
 
       /* PUSH phase: out Map<String, StoreEntryMetadata>, in StoreEntryDiffData[], out
        * StoreEntryDiff[]  */
       logger.trace("Performing push active phase...");
       conn.send(entriesMetadata);
-      StoreEntryDiffData[] diffDataIn = (StoreEntryDiffData[]) conn.receive(RECEIVE_TIMEOUT);
+      StoreEntryDiffData[] diffDataIn = (StoreEntryDiffData[]) conn.receive(timeUntillNextActiveCycle());
       if (diffDataIn == null) return;
       StoreEntryDiff[] toPush = store.diffStoreEntries(diffDataIn);
       conn.send(toPush);
@@ -167,12 +169,12 @@ public class CloudPushPullAntiEntropyBroadcast extends CloudEnabledAntiEntropyBr
       /* PULL phase: in Map<String, StoreEntryMetadata>, in String[], out StoreEntryDiffData[], in
        * StoreEntryDiff[] */
       logger.trace("Performing pull active phase...");
-      metadataToUpdate = (Map<String, StoreEntryMetadata>) conn.receive(RECEIVE_TIMEOUT);
-      String[] keysToPull = (String[]) conn.receive(RECEIVE_TIMEOUT);
+      metadataToUpdate = (Map<String, StoreEntryMetadata>) conn.receive(timeUntillNextActiveCycle());
+      String[] keysToPull = (String[]) conn.receive(timeUntillNextActiveCycle());
       if (keysToPull == null) return;
       StoreEntryDiffData[] diffDataOut = store.produceStoreEntriesDiffData(keysToPull);
       conn.send(diffDataOut);
-      StoreEntryDiff[] toPull = (StoreEntryDiff[]) conn.receive(RECEIVE_TIMEOUT);
+      StoreEntryDiff[] toPull = (StoreEntryDiff[]) conn.receive(timeUntillNextActiveCycle());
 
       /* Finally patch the store... */
       logger.trace("Updating local store...");
@@ -182,6 +184,10 @@ public class CloudPushPullAntiEntropyBroadcast extends CloudEnabledAntiEntropyBr
       if (metadataToUpdate != null) {
         store.updateMetadatas(metadataToUpdate);
       }
+    } catch (SocketTimeoutException e) {
+      logger.warn("Error resolving difference (active). Receive timeout", e);
+    } catch (NetworkException e) {
+      logger.warn("Error resolving difference (active). Network error", e);
     } catch (IOException e) {
       /* Something gone bad. Abort active cycle */
       logger.warn("Error resolving difference (active). Input/Output error", e);
@@ -204,11 +210,11 @@ public class CloudPushPullAntiEntropyBroadcast extends CloudEnabledAntiEntropyBr
        * in  StoreEntryDiff[] */
       logger.trace("Performing pull passive phase...");
       HashMap<String, StoreEntryMetadata> remoteMetadata;
-      remoteMetadata = (HashMap<String, StoreEntryMetadata>) conn.receive(RECEIVE_TIMEOUT);
+      remoteMetadata = (HashMap<String, StoreEntryMetadata>) conn.receive(timeUntillNextActiveCycle());
       StoreCompareResult cmpresult = store.compareStoreEntries(remoteMetadata);
       StoreEntryDiffData[] diffDataOut = store.produceStoreEntriesDiffData(cmpresult.getKeysFresherOnRemoteNode());
       conn.send(diffDataOut);
-      StoreEntryDiff[] toPull = (StoreEntryDiff[]) conn.receive(RECEIVE_TIMEOUT);
+      StoreEntryDiff[] toPull = (StoreEntryDiff[]) conn.receive(timeUntillNextActiveCycle());
 
       /* PUSH phase: out Map<String, StoreEntryMetadata>, String[], in StoreEntryDiffData[], out
        * StoreEntryDiff[] */
@@ -226,7 +232,7 @@ public class CloudPushPullAntiEntropyBroadcast extends CloudEnabledAntiEntropyBr
       }
 
       conn.send(cmpresult.getKeyFresherOnLocalNode());
-      StoreEntryDiffData[] diffDataIn = (StoreEntryDiffData[]) conn.receive(RECEIVE_TIMEOUT);
+      StoreEntryDiffData[] diffDataIn = (StoreEntryDiffData[]) conn.receive(timeUntillNextActiveCycle());
       StoreEntryDiff[] toPush = store.diffStoreEntries(diffDataIn);
       conn.send(toPush);
       conn.close();
@@ -243,6 +249,10 @@ public class CloudPushPullAntiEntropyBroadcast extends CloudEnabledAntiEntropyBr
           metadataToUpdate.put(key, remoteMetadata.get(key));
         store.updateMetadatas(metadataToUpdate);
       }
+    } catch (SocketTimeoutException e) {
+      logger.warn("Error resolving difference (passive). Receive timeout", e);
+    } catch (NetworkException e) {
+      logger.warn("Error resolving difference (passive). Network error", e);
     } catch (IOException e) {
       /* Something gone bad... give up this passive cycle */
       logger.warn("Error resolving difference (passive). Input/Output error", e);
@@ -275,27 +285,49 @@ public class CloudPushPullAntiEntropyBroadcast extends CloudEnabledAntiEntropyBr
    */
   public void runActiveThread() {
     long sleepTime;
+    long tentativeTimestamp;
+    boolean success;
+    int count = 0;
     while(!isTerminated()) {
       Node remote = peerSelector.getNode();
-
-      if (lastCycleTimestamp == 0) lastCycleTimestamp = System.currentTimeMillis();
-      else lastCycleTimestamp += period * 1000;
-
+      tentativeTimestamp = System.currentTimeMillis();
+      success = false;
+      count++;
       try {
         if (remote != null) {
           if (remote.isCloud()) resolveDifferenceCloud((CloudNode) remote);
           else resolveDifferencePeer((PeerNode) remote);
         }
+        success = true;
       } catch (InterruptedException e) {
         /* The check for the termination is done right after */
         logger.warn("Catched an InterruptedException while resolving difference");
       } catch (ClassCastException e) {
-        logger.error("Error: remote peer class not supported", e);
+        logger.warn("Error: remote peer class not supported", e);
+      } catch (NetworkException e) {
+        logger.warn("Network error resolving differences", e);
+      } catch (SocketTimeoutException e) {
+        logger.warn("Network timeout resolving differences", e);
+      } catch (IOException e) {
+        logger.warn("Input/Output error resolving differences", e);
+      }
+
+      /* If we weren't able to complete the active cycle retry in a second... */
+      if (!success && count < (period / 2)) {
+        logger.trace("Failed active cycle, retrying");
+        try {
+          Thread.currentThread().sleep(1000);
+          continue;
+        } catch (InterruptedException e) {}
       }
 
       if (isTerminated()) break;
 
-      sleepTime = timeUntillNextActiveCycle();
+      count = 0;
+      if (lastCycleTimestamp == 0) lastCycleTimestamp = tentativeTimestamp;
+      else lastCycleTimestamp += period * 1000;
+
+      sleepTime = timeUntillNextActiveCycle() * 1000;
       try {
         if (sleepTime > 0) Thread.currentThread().sleep(sleepTime);
       } catch (InterruptedException e) {
