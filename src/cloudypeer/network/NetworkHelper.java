@@ -8,6 +8,7 @@ package cloudypeer.network;
 import java.io.IOException;
 import java.io.Serializable;
 import java.net.InetAddress;
+import java.net.SocketTimeoutException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -417,7 +418,7 @@ public abstract class NetworkHelper {
    */
   protected abstract NetworkConnection createConnectionImpl(PeerNode endpoint, int clientID,
                                                             int timeout)
-    throws IOException, NetworkException;
+    throws IOException, NetworkException, SocketTimeoutException;
 
   /**
    * Starts this NetworkHelper instance

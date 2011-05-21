@@ -12,6 +12,7 @@ import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
 
 import cloudypeer.network.NetworkConnection;
 import cloudypeer.network.NetworkException;
@@ -106,7 +107,7 @@ public class SimpleNetworkConnection implements NetworkConnection {
   /*
    * Implementation of NetworkConnection.receive()
    */
-  public Object receive(int timeout) throws IOException, NetworkException {
+  public Object receive(int timeout) throws IOException, NetworkException, SocketTimeoutException {
     ProtectedInputStream pin;
     ObjectInputStream in = null;
     Object obj = null;

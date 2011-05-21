@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.net.SocketTimeoutException;
 
 /**
  * Interface that defines the operation to be supported by a network connection
@@ -35,7 +36,8 @@ public interface NetworkConnection {
    * @exception IOException if an error occurs
    * @exception NetworkException if an error occurs
    */
-  public Object receive(int timeout) throws IOException, NetworkException;
+  public Object receive(int timeout) throws IOException, NetworkException,
+                                            SocketTimeoutException;
 
   /**
    * Returns the current connection input stream.

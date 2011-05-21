@@ -240,7 +240,7 @@ public class SimpleNetworkHelper extends NetworkHelper {
   }
 
   protected NetworkConnection createConnectionImpl(PeerNode endpoint, int clientID, int timeout)
-    throws IOException, NetworkException
+    throws IOException, NetworkException, SocketTimeoutException
   {
     Socket conn = new Socket();
     ByteBuffer byteBuff = ByteBuffer.allocate(4);
@@ -271,9 +271,6 @@ public class SimpleNetworkHelper extends NetworkHelper {
 
       conn.setSoTimeout(currentTimeout);
       return new SimpleNetworkConnection(conn);
-    } catch (SocketTimeoutException e) {
-      logger.warn("Timeout while negotiating the connection.");
-      return null;
     } catch (IOException e) {
       logger.warn("Input/Output error connecting.", e);
       try {
