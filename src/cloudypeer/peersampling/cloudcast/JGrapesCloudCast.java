@@ -348,7 +348,6 @@ public class JGrapesCloudCast extends CloudCast {
       throw new PeerSamplerException("Error initializing jgrapes cloud helper", e);
     }
 
-    System.out.println(psConf);
     try {
       peerSampler = JGrapes.newPeerSamplerInstance(netHelper, null, psConf);
     } catch (JGrapesException e) {
