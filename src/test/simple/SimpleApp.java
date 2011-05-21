@@ -84,7 +84,7 @@ public class SimpleApp {
 
     this.antiEntropy = CloudEnabledAntiEntropyBroadcast.getDefaultInstance(localNode, peerSelectorAE,
                                                                     simpleStore, cloudStore);
-    this.antiEntropy.setPeriod(30);
+    this.antiEntropy.setPeriod(15);
     this.rumorMongering = RumorMongeringBroadcast.getDefaultInstance(localNode, peerSelectorRM,
                                                                 simpleStore, 5);
     this.rumorMongering.setPeriod(4);
