@@ -192,7 +192,9 @@ public class SimpleNetworkHelper extends NetworkHelper {
    ***********************************************************************/
 
   public void start() throws IOException, NetworkException {
-    connSocket = new ServerSocket(localNode.getPort());
+    connSocket = new ServerSocket();
+    connSocket.setReuseAddress(true);
+    connSocket.bind(new InetSocketAddress(localNode.getPort()));
     dgramSocket = new DatagramSocket(localNode.getPort());
 
     connServer = new ConnectionServer(connSocket);
