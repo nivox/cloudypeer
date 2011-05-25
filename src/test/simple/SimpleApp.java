@@ -25,6 +25,9 @@ import cloudypeer.peersampling.RandomPeerSelector;
 import cloudypeer.peersampling.cloudcast.CloudCast;
 import cloudypeer.store.Store;
 import cloudypeer.store.StoreUpdateHandler;
+import cloudypeer.store.diff.FakeDiffHandler;
+import cloudypeer.store.persistence.BasicCloudPersistenceHandler;
+import cloudypeer.store.persistence.InMemoryPersistenceHandler;
 import cloudypeer.store.simple.SimpleStore;
 import cloudypeer.store.simple.StoreEntryDiffHandler;
 import org.apache.log4j.Logger;
@@ -69,16 +72,21 @@ public class SimpleApp {
     this.cloudCast = CloudCast.getDefaultInstance(localNode, peerSamplingCloudURI);
 
     this.peerSelectorAE = new RandomPeerSelector(cloudCast);
+    this.peerSelectorAE.getExcludedPeers().add(localNode);
     this.peerSelectorRM = new RandomPeerSelector(cloudCast);
+    this.peerSelectorRM.getExcludedPeers().add(localNode);
     this.peerSelectorRM.excludeCloud(true);
 
-    StoreEntryDiffHandler diffHandler = new SimpleStoreEntryDiffHandler();
-    this.simpleStore = new SimpleStore(new LocalPersistenceHandler(), diffHandler);
+    StoreEntryDiffHandler diffHandler = new FakeDiffHandler();
+    this.simpleStore = new SimpleStore(new InMemoryPersistenceHandler(), diffHandler);
     this.simpleStore.addUpdateHandler(new SimpleStoreUpdateHandler("local"));
 
     this.storeCloudURI = CloudURI.getInstance(cloudProvider, storeURI);
     this.storeCloud = StorageCloud.getInstance(cloudProvider, storeCloudURI);
-    this.cloudStore = new SimpleStore(new CloudPersistenceHandler(storeCloud, 10, 2), diffHandler);
+    BasicCloudPersistenceHandler cloudPersistence = new BasicCloudPersistenceHandler(storeCloud, "store/");
+    cloudPersistence.setKeysRefreshThreshold(10);
+    cloudPersistence.setMetadataRefreshThreshold(2);
+    this.cloudStore = new SimpleStore(cloudPersistence, diffHandler);
     this.cloudStore.addUpdateHandler(new SimpleStoreUpdateHandler("cloud"));
 
 
@@ -154,7 +162,6 @@ public class SimpleApp {
         help();
         throw new IllegalArgumentException("Missing store cloud uri");
       } else storeURI = new URI(args[4]);
-
 
       SimpleApp app = new SimpleApp(ip, port, cloudProvider, psURI, storeURI);
       app.run();
