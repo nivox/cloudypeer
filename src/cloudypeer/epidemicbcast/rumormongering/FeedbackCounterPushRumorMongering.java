@@ -7,6 +7,7 @@ package cloudypeer.epidemicbcast.rumormongering;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.net.SocketTimeoutException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -18,6 +19,7 @@ import cloudypeer.PeerNode;
 import cloudypeer.PeerSelector;
 import cloudypeer.network.NetworkClient;
 import cloudypeer.network.NetworkConnection;
+import cloudypeer.network.NetworkException;
 import cloudypeer.network.NetworkHelper;
 import cloudypeer.store.Store;
 import cloudypeer.store.StoreCompareResult;
@@ -117,7 +119,7 @@ public class FeedbackCounterPushRumorMongering
    * Implementation of pushNews and receiveNews
    ***********************************************************************/
 
-  private void pushNews(PeerNode remote) {
+  private void pushNews(PeerNode remote) throws NetworkException, SocketTimeoutException {
     NetworkConnection conn = null;
     try {
       logger.info("Pushing news to " + remote);
@@ -254,6 +256,16 @@ public class FeedbackCounterPushRumorMongering
         }
       } catch (ClassCastException e) {
         logger.error("Error: remote peer class not supported", e);
+      } catch (NetworkException e) {
+        logger.warn("Network error resolving differences", e);
+      } catch (SocketTimeoutException e) {
+        logger.warn("Network timeout resolving differences", e);
+      } catch (IOException e) {
+        logger.warn("Input/Output error resolving differences", e);
+      } catch (IllegalArgumentException e) {
+        logger.warn("Argument error", e);
+      } catch (RuntimeException e) {
+        logger.fatal("Uncatched exception", e);
       }
 
       if (isTerminated()) break;
