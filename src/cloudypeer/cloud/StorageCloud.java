@@ -62,14 +62,31 @@ public abstract class StorageCloud {
   public abstract CloudURI getCloudURI();
 
   /**
-   * Lists the key present on the cloud
+   * Checks if this cloud implementation supports date list filtering.
+   *
+   * @return True if list filtering by date is supported
+   */
+  public abstract boolean supportsListByDate();
+
+  /**
+   * Checks if this cloud implementation supports prefix list filtering.
+   *
+   * @return True if list filtering by prefix is supported
+   */
+  public abstract boolean supportsListByPrefix();
+
+  /**
+   * Lists the key present on the cloud. If a filtering parameter is not supported by this cloud
+   * provider it will be ignored.
    *
    * @param timestamp If not null, returns only keys fresher than the specified timestamp
+   * @param prefix If not null, returns only keys matching the prefix
    * @return Array of the keys present on the cloud
    * @exception IOException If an IO error occurs while handling the request
    * @exception CloudException If any other error occurs
    */
-  public abstract String[] list(Date timestamp) throws IOException, CloudException;
+  public abstract String[] list(Date timestamp, String prefix)
+    throws IOException, CloudException;
 
   /**
    * Returns the object associated to this key on the cloud

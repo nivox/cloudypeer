@@ -329,7 +329,7 @@ public class MySQLStorageCloud extends StorageCloud {
       throw new CloudException("Error performing put operation", e);
     } finally {
       try {
-        in.close();
+        if (in != null) in.close();
       } catch (IOException e) {}
 
       try {
@@ -381,25 +381,31 @@ public class MySQLStorageCloud extends StorageCloud {
     }
   }
 
-  public String[] list(Date timestamp) throws IOException, CloudException {
-    String query;
+  public boolean supportsListByPrefix() {
+    return true;
+  }
 
-    if (timestamp != null){
-      query = String.format("SELECT %s FROM %s WHERE %s > %d",
-                            FIELD_NAME_KEY,
-                            mysqlCloudURI.getBucket(),
-                            FIELD_NAME_LAST_MODIFIED, timestamp.getTime() / 1000);
-    } else {
-      query = String.format("SELECT %s FROM %s",
-                            FIELD_NAME_KEY,
-                            mysqlCloudURI.getBucket());
-    }
+  public boolean supportsListByDate() {
+    return true;
+  }
+
+  public String[] list(Date tstamp, String prefix) throws IOException, CloudException {
+    String query;
+    long timestamp = (tstamp != null) ? tstamp.getTime() : 0;
+    if (prefix == null) prefix = "";
+
+    query = String.format("SELECT %s FROM %s WHERE %s > %d AND %s LIKE '%s%%'",
+                          FIELD_NAME_KEY,
+                          mysqlCloudURI.getBucket(),
+                          FIELD_NAME_LAST_MODIFIED, timestamp / 1000,
+                          FIELD_NAME_KEY, prefix);
+
 
     Connection conn = null;
     Statement queryStmt = null;
     ResultSet result = null;
-
     try {
+      logger.trace("Listing cloud entries: " + query);
       conn = getConnection();
       queryStmt = conn.createStatement();
       result = queryStmt.executeQuery(query);
@@ -408,7 +414,7 @@ public class MySQLStorageCloud extends StorageCloud {
       while (result.next()) {
         keys.add(result.getString(FIELD_NAME_KEY));
       }
-
+      logger.trace("Found " + keys.size() + " entries");
       return keys.toArray(new String[keys.size()]);
     } catch (SQLException e) {
       throw new CloudException("Error listing entries", e);
