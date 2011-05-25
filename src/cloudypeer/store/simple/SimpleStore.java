@@ -174,7 +174,7 @@ public class SimpleStore implements Store {
    */
   public HashMap getStoreEntriesMetadata() throws StoreException {
     String[] keys = listStoreEntries();
-
+    logger.trace("Getting metadata for " + keys.length + " keys");
     return getStoreEntriesMetadata(keys);
   }
 
