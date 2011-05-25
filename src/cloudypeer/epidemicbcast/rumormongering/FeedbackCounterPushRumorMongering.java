@@ -108,9 +108,9 @@ public class FeedbackCounterPushRumorMongering
   /* *********************************************************************
    * Implementation of util methods
    ***********************************************************************/
-  private long timeUntillNextActiveCycle() {
-    long delta = (lastCycleTimestamp + (period * 1000)) - System.currentTimeMillis();
-    return (delta > 0) ? delta : 0;
+  private int timeUntillNextActiveCycle() {
+    int delta = (int) ((lastCycleTimestamp + (period * 1000)) - System.currentTimeMillis());
+    return (delta > 0) ? (delta / 1000) : 0;
   }
 
   /* *********************************************************************
@@ -133,7 +133,7 @@ public class FeedbackCounterPushRumorMongering
       logger.trace("Pushing news: sending metadata");
       conn.send(entriesMetadata);
       logger.trace("Pushing news: reading diff data");
-      StoreEntryDiffData[] diffData = (StoreEntryDiffData[]) conn.receive(RECEIVE_TIMEOUT);
+      StoreEntryDiffData[] diffData = (StoreEntryDiffData[]) conn.receive(timeUntillNextActiveCycle());
       if (diffData == null) return;
       StoreEntryDiff[] toPush = store.diffStoreEntries(diffData);
       logger.trace("Pushing news: sending diff");
@@ -182,13 +182,13 @@ public class FeedbackCounterPushRumorMongering
       logger.info("Receiving news");
       HashMap<String, StoreEntryMetadata> remoteMetadata;
       logger.trace("Receiving news: reading metadata");
-      remoteMetadata = (HashMap<String, StoreEntryMetadata>) conn.receive(RECEIVE_TIMEOUT);
+      remoteMetadata = (HashMap<String, StoreEntryMetadata>) conn.receive(timeUntillNextActiveCycle());
       StoreCompareResult cmpresult = store.compareStoreEntries(remoteMetadata);
       StoreEntryDiffData[] diffData = store.produceStoreEntriesDiffData(cmpresult.getKeysFresherOnRemoteNode());
       logger.trace("Receiving news: sending diff data");
       conn.send(diffData);
       logger.trace("Receiving news: reading diff");
-      StoreEntryDiff[] news = (StoreEntryDiff[]) conn.receive(RECEIVE_TIMEOUT);
+      StoreEntryDiff[] news = (StoreEntryDiff[]) conn.receive(timeUntillNextActiveCycle());
       logger.trace("Receiving news: closing connection");
       conn.close();
 
@@ -254,7 +254,7 @@ public class FeedbackCounterPushRumorMongering
 
       if (isTerminated()) break;
 
-      sleepTime = timeUntillNextActiveCycle();
+      sleepTime = timeUntillNextActiveCycle() * 1000;
       try {
         if (sleepTime > 0) Thread.currentThread().sleep(sleepTime);
       } catch (InterruptedException e) {
