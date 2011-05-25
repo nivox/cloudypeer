@@ -43,6 +43,7 @@ public class CloudPushPullAntiEntropyBroadcast extends CloudEnabledAntiEntropyBr
 
   private static final int CONNECTION_TIMEOUT = 5000;
   private static final int RECEIVE_TIMEOUT = 5000;
+  private static final int BOOTSTRAP_PERIOD = 1000;
 
   /* *********************************************************************
    * Instance variables
@@ -57,6 +58,11 @@ public class CloudPushPullAntiEntropyBroadcast extends CloudEnabledAntiEntropyBr
    * Timestamp of the last active cycle
    */
   private long lastCycleTimestamp = 0;
+
+  /**
+   * Flag for bootstrap phase
+   */
+  private boolean bootstrap = true;
 
   /* *********************************************************************
    * Constructors
@@ -298,10 +304,13 @@ public class CloudPushPullAntiEntropyBroadcast extends CloudEnabledAntiEntropyBr
       success = false;
       count++;
       try {
+        logger.trace("Active cycle: " + remote);
         if (remote != null) {
           if (remote.isCloud()) resolveDifferenceCloud((CloudNode) remote);
           else resolveDifferencePeer((PeerNode) remote);
         }
+
+        if (remote != null && bootstrap) bootstrap = false;
         success = true;
       } catch (InterruptedException e) {
         /* The check for the termination is done right after */
@@ -314,13 +323,17 @@ public class CloudPushPullAntiEntropyBroadcast extends CloudEnabledAntiEntropyBr
         logger.warn("Network timeout resolving differences", e);
       } catch (IOException e) {
         logger.warn("Input/Output error resolving differences", e);
+      } catch (IllegalArgumentException e) {
+        logger.warn("Argument error", e);
+      } catch (RuntimeException e) {
+        logger.fatal("Uncatched exception", e);
       }
 
       /* If we weren't able to complete the active cycle retry in a second... */
-      if (!success && count < (period / 2)) {
+      if (bootstrap || (!success && count < (period / 2))) {
         logger.trace("Failed active cycle, retrying");
         try {
-          Thread.currentThread().sleep(1000);
+          Thread.currentThread().sleep(BOOTSTRAP_PERIOD);
           continue;
         } catch (InterruptedException e) {}
       }
