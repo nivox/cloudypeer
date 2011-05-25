@@ -5,7 +5,6 @@
  */
 package cloudypeer.peersampling;
 
-import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.List;
 import java.util.Random;
@@ -14,6 +13,7 @@ import java.util.Set;
 import cloudypeer.Node;
 import cloudypeer.PeerNode;
 import cloudypeer.PeerSelector;
+import java.util.HashSet;
 
 /**
  * Implementation of a random peer selector which uses a PeerSampler protocol instance as the source
@@ -25,7 +25,7 @@ import cloudypeer.PeerSelector;
 public class RandomPeerSelector implements PeerSelector {
 
   private PeerSampler ps;
-  private List<PeerNode> excludedPeers = new ArrayList<PeerNode>();
+  private Set<PeerNode> excludedPeers = new HashSet<PeerNode>();
   private boolean excludeCloud = false;
   private Random random;
 
@@ -45,7 +45,7 @@ public class RandomPeerSelector implements PeerSelector {
    *
    * @return List of excluded peers backing the peer selector
    */
-  public List<PeerNode> getExcludedPeers() {
+  public Set<PeerNode> getExcludedPeers() {
     return excludedPeers;
   }
 
@@ -86,12 +86,10 @@ public class RandomPeerSelector implements PeerSelector {
       }
 
       /* It's an excluded peer? */
-      for (Node ex: excludedPeers) {
-        if (ex.equals(peer)) {
-          excludedMap.set(n);
-          excluded++;
-          continue;
-        }
+      if (excludedPeers.contains(peer)) {
+        excludedMap.set(n);
+        excluded++;
+        continue;
       }
 
       /* We found a good candidate */
