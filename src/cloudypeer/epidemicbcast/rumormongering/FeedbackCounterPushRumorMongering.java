@@ -219,13 +219,17 @@ public class FeedbackCounterPushRumorMongering
    ***********************************************************************/
   @Override
   public void init() throws GossipProtocolException {
-    netHelper = NetworkHelper.getConfiguredInstance();
+    try {
+      netHelper = (NetworkHelper) this.getProtocolData("nethelper");
+    } catch (Exception e) {}
+    if (netHelper == null)
+      netHelper = NetworkHelper.getConfiguredInstance();
     if (netHelper == null) {
-      logger.error("No NetworkHelper instance configured");
-      throw new GossipProtocolException("NetworkHelper configured instance not present");
+      logger.error("No NetworkHelper instance specified as protocol data nor a configured instance is present");
+      throw new GossipProtocolException("NetworkHelper instance not passed nor configured");
     }
 
-    netHelper.registerClient(this, 666);
+    netHelper.registerClient(this, 1);
     store.addUpdateHandler(this);
   }
 
