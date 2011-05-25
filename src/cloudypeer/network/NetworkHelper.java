@@ -17,6 +17,8 @@ import java.util.Map;
 import cloudypeer.DynamicProviderHelper;
 import cloudypeer.PeerNode;
 import org.apache.log4j.Logger;
+import java.net.ServerSocket;
+import java.net.DatagramSocket;
 
 /**
  * Base abstract class for all NetworkHelper implementation
@@ -181,6 +183,39 @@ public abstract class NetworkHelper {
   /* *********************************************************************
    * Common methods implementation
    ***********************************************************************/
+
+  /**
+   * Search for a free TCP and UDP port in the given range
+   *
+   * @param start Port number start
+   * @param len Range length or 0 to use up to 65535
+   * @return Free port number or -1 if no free port found
+   */
+  public static int findFreePort(int start, int len) {
+    int port = start;
+    int end = (len == 0) ? 65535 : start + len;
+    if (end > 65535) end = 65535;
+
+    while (port < end) {
+      try {
+        ServerSocket socket = new ServerSocket(port);
+        socket.close();
+      } catch (Exception e) {
+        port++;
+        continue;
+      }
+
+      try{
+        DatagramSocket socket = new DatagramSocket(port);
+        socket.close();
+      } catch (Exception e) {
+        port++;
+        continue;
+      }
+      return port;
+    }
+    return -1;
+  }
 
   /**
    * Terminates this NetworkHelper instance
