@@ -5,9 +5,13 @@
  */
 package cloudypeer.peersampling.cloudcast;
 
+import java.net.DatagramSocket;
+import java.net.SocketException;
 import java.net.URI;
 import java.net.UnknownHostException;
+import java.nio.ByteBuffer;
 import java.util.HashMap;
+import java.util.Random;
 
 import cloudypeer.CloudNode;
 import cloudypeer.Metadata;
@@ -44,9 +48,10 @@ import jgrapes.ReceivedData;
  */
 public class JGrapesCloudCast extends CloudCast {
 
-  NetworkHelper netHelper;
-  CloudHelper cloudHelper;
-  jgrapes.PeerSampler peerSampler;
+  private NetworkHelper netHelper;
+  private CloudHelper cloudHelper;
+  private jgrapes.PeerSampler peerSampler;
+  private Random random = new Random();
 
   /**
    * Creates a new <code>JGrapesCloudCast</code> instance with the default parameters.
@@ -298,11 +303,11 @@ public class JGrapesCloudCast extends CloudCast {
    * @param node A jGrapes node
    * @return A CloudyPeer node
    */
-  private Node convertToNode(NodeID node) throws UnknownHostException {
+  private Node convertToNode(NodeID node, int port) throws UnknownHostException {
     if (cloudHelper.isCloudNode(node)) {
       return new CloudNode(cloudURI);
     } else {
-      return new PeerNode(node.getAddress(), node.getPort() - 1);
+      return new PeerNode(node.getAddress(), port);
     }
   }
 
@@ -319,7 +324,7 @@ public class JGrapesCloudCast extends CloudCast {
     } else {
       try {
       PeerNode n = (PeerNode) node;
-      return new NodeID(String.format("%s:%d", n.getInetAddress().getHostAddress(), n.getPort() + 1));
+      return new NodeID(String.format("%s:%d", n.getInetAddress().getHostAddress(), n.getPort()));
       } catch (ClassCastException e) {
         throw new PeerSamplerException("Unsupported node type", e);
       } catch (UnknownHostException e) {
@@ -331,11 +336,31 @@ public class JGrapesCloudCast extends CloudCast {
   /* *********************************************************************
    * Implementation of GossipProtocol's protected methods
    ***********************************************************************/
+  private int findFreeUDPPort(int start) throws PeerSamplerException {
+    boolean found = false;
+    int count = 0;
+    int targetPort;
+    DatagramSocket sock = null;
+    while (!found && count < (65535 - start)) {
+      count++;
+      targetPort = random.nextInt(65535 - start) + start;
+
+      try {
+        sock = new DatagramSocket(targetPort);
+        return targetPort;
+      } catch (SocketException e) {
+      } finally {
+        if (sock != null) sock.close();
+      }
+    }
+
+    throw new PeerSamplerException("Cannot find a free port to bind jGRAPES network helper. Base port: " + start);
+  }
 
   @Override
   public void init() throws PeerSamplerException {
     String localIp = localNode.getInetAddress().getHostAddress();
-    int localPort = localNode.getPort() + 1;
+    int localPort = findFreeUDPPort(localNode.getPort());
     String cloudConf = genJGrapesCloudHelperConfString();
     String psConf = genJGrapesPeerSamplerConfString();
 
@@ -352,7 +377,8 @@ public class JGrapesCloudCast extends CloudCast {
     }
 
     try {
-      peerSampler = JGrapes.newPeerSamplerInstance(netHelper, null, psConf);
+      byte[] localMeta = ByteBuffer.allocate(4).putInt(localNode.getPort()).array();
+      peerSampler = JGrapes.newPeerSamplerInstance(netHelper, localMeta, psConf);
     } catch (JGrapesException e) {
       throw new PeerSamplerException("Error initializing jgrapes peer sampler", e);
     }
@@ -394,14 +420,18 @@ public class JGrapesCloudCast extends CloudCast {
 
       if (data != null) { /* passive cycle */
         try {
-          peerSampler.parseData(data);
+          synchronized (peerSampler) {
+            peerSampler.parseData(data);
+          }
         } catch (JGrapesException e) {
           System.err.println("JGrapesCloudCast: error parsing remote data");
           e.printStackTrace();
         }
       } else { /* active cycle */
         try {
-          peerSampler.parseData(null);
+          synchronized (peerSampler) {
+            peerSampler.parseData(null);
+          }
         } catch (JGrapesException e) {
           System.err.println("JGrapesCloudCast: error performing active cycle");
           e.printStackTrace();
@@ -430,7 +460,7 @@ public class JGrapesCloudCast extends CloudCast {
 
     boolean status = false;
     try {
-      peerSampler.addPeer(convertToNodeID(node), null);
+        peerSampler.addPeer(convertToNodeID(node), null);
       status = true;
     } catch (JGrapesException e) {
       /* this is thrown to signal that the node could not be added */
@@ -462,21 +492,35 @@ public class JGrapesCloudCast extends CloudCast {
     if (!wasStarted() || isTerminated())
       throw new IllegalStateException("Cloudcast protocol not active");
 
-    NodeID cache[] = peerSampler.getCache();
+    NodeID cache[];
+    byte meta[][];
+
+    synchronized (peerSampler) {
+      cache = peerSampler.getCache();
+      meta = peerSampler.getMetadata();
+    }
+
     HashMap<Node, Metadata> view = new HashMap<Node, Metadata>();
 
     Node n;
+    int i = 0;
     for (NodeID node: cache) {
       try {
-        n = convertToNode(node);
+        n = convertToNode(node, ByteBuffer.wrap(meta[i]).getInt(0));
+        i++;
       } catch (UnknownHostException e) {
         /* This should not be happening... */
         e.printStackTrace();
         continue;
+      } catch (ArrayIndexOutOfBoundsException e) {
+        /* Whoops, problem with the metadata */
+        e.printStackTrace();
+        continue;
       }
 
-
-      view.put(n, null);
+      Metadata m = new Metadata();
+      m.put("nodeid", node.getPort());
+      view.put(n, m);
     }
 
     return new View(view);
