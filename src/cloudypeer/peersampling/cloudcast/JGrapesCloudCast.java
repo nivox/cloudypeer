@@ -180,7 +180,7 @@ public class JGrapesCloudCast extends CloudCast {
     conf += ",mysql_user=" + user;
     conf += ",mysql_pass=" + ((pass != null)? pass: "");
     conf += ",mysql_db=" + db;
-    conf += ",mysql_table=" + db;
+    conf += ",mysql_table=" + bucket;
 
     return conf;
   }
@@ -265,6 +265,9 @@ public class JGrapesCloudCast extends CloudCast {
     conf += ",period=" + period;
     conf += ",cache_size=" + viewSize;
     conf += ",sent_entries=" + partialViewSize;
+
+    if (cloudURI.getKey() != null && !cloudURI.getKey().equals(""))
+      conf += ",view_key=" + cloudURI.getKey();
 
     String maxSilenceString = protocolConfiguration.getProperty("max_silence");
     if (maxSilenceString != null) {
