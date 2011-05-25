@@ -365,6 +365,9 @@ public abstract class NetworkHelper {
     if (destination == null || client == null || message == null)
       throw new IllegalArgumentException("Null parameter");
 
+    if (destination.equals(localNode))
+        throw new IllegalArgumentException("Trying to connect to local peer");
+
     Integer clientID = getIDForClient(client);
     if (clientID == null) throw new IllegalArgumentException("Client not registered");
 
@@ -388,6 +391,9 @@ public abstract class NetworkHelper {
   {
     if (endpoint == null || client == null)
       throw new IllegalArgumentException("Null parameter");
+
+    if (endpoint.equals(localNode))
+        throw new IllegalArgumentException("Trying to connect to local peer");
 
     Integer clientID = getIDForClient(client);
     if (clientID == null) throw new IllegalArgumentException("Client not registered");
