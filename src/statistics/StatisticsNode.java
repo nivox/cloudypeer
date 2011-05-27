@@ -94,6 +94,9 @@ public class StatisticsNode {
                                                                     localStore, cloudStore);
     this.rumorMongering = RumorMongeringBroadcast.getDefaultInstance(localNode, peerSelectorRM,
                                                                 localStore, 5);
+
+    this.antiEntropy.setProtocolData("nethelper", netHelper);
+    this.rumorMongering.setProtocolData("nethelper", netHelper);
   }
 
   public void setAntiEntropyPeriod(int period) {

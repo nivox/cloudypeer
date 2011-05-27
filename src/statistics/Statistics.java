@@ -126,7 +126,7 @@ public class Statistics {
       long startTime =  System.currentTimeMillis();
       long endTime = startTime + (duration * 60000);
       int lengthTime = (int) (endTime - startTime);
-      long nextNewsTime = startTime + newsPeriod * 60000;
+      long nextNewsTime = startTime + (random.nextInt(newsPeriod) * 60000);
       int currentNodes = 0;
       int progress = 0;
       int tmp;
@@ -165,6 +165,7 @@ public class Statistics {
             n.terminate();
           }
         }
+        currentNodes += nodesToAddRemove;
 
 
         // Add news
@@ -174,8 +175,11 @@ public class Statistics {
 
           int index = random.nextInt(nodeList.size());
           StatisticsNode n = nodeList.get(index);
+          print(String.format("@ adding news_name=%s", news.getName()));
           n.addNews(news.getName(), StatisticsNews.class.getName(), news);
         }
+
+        Thread.currentThread().sleep(1000);
       }
     }
 
@@ -283,9 +287,12 @@ public class Statistics {
       System.exit(1);
     } else rmPeriod = Integer.parseInt(args[count]);
 
+    logger.info("Initializing test");
     Statistics stats = new Statistics(logDirectoryPath, ip, basePort, cloudProvider, cloudURI,
                                       netsize, duration, iterations, newsPeriod, aePeriod,
                                       rmPeriod);
+
+    logger.info("Running test");
     stats.run();
   }
 
