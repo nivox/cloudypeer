@@ -31,7 +31,7 @@ public interface NetworkConnection {
   /**
    * Receive an object on this connection.
    *
-   * @param timeout How much block before returning null
+   * @param timeout Timeout in milliseconds
    * @return Received object or null
    * @exception IOException if an error occurs
    * @exception NetworkException if an error occurs
