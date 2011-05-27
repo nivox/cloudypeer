@@ -112,7 +112,7 @@ public class FeedbackCounterPushRumorMongering
    ***********************************************************************/
   private int timeUntillNextActiveCycle() {
     int delta = (int) ((lastCycleTimestamp + (period * 1000)) - System.currentTimeMillis());
-    return (delta > 0) ? (delta / 1000) : 0;
+    return (delta > 0) ? delta : 0;
   }
 
   /* *********************************************************************
@@ -270,7 +270,7 @@ public class FeedbackCounterPushRumorMongering
 
       if (isTerminated()) break;
 
-      sleepTime = timeUntillNextActiveCycle() * 1000;
+      sleepTime = timeUntillNextActiveCycle();
       try {
         if (sleepTime > 0) Thread.currentThread().sleep(sleepTime);
       } catch (InterruptedException e) {
