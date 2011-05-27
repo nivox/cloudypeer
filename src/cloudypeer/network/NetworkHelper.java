@@ -415,7 +415,7 @@ public abstract class NetworkHelper {
    *
    * @param client NetworkClient responsible for this connection
    * @param endpoint The peer with which establish the connection
-   * @param timeout Timeout after which abort
+   * @param timeout Timeout after which abort (in milliseconds)
    * @return A NetworkConnection instance
    * @exception IOException if an error occurs
    * @exception IllegalArgumentException If the client is not registered

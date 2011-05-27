@@ -99,7 +99,7 @@ public class CloudPushPullAntiEntropyBroadcast extends CloudEnabledAntiEntropyBr
 
   private int timeUntillNextActiveCycle() {
     int delta = (int) ((lastCycleTimestamp + (period * 1000)) - System.currentTimeMillis());
-    return (delta > 0) ? (delta / 1000) : 0;
+    return (delta > 0) ? delta : 0;
   }
 
   /* *********************************************************************
@@ -251,17 +251,19 @@ public class CloudPushPullAntiEntropyBroadcast extends CloudEnabledAntiEntropyBr
       String[] metadataChangedOnRemote = cmpresult.getMetadataChangedOnRemoteNode();
       if (metadataChangedOnRemote.length > 0) {
         metadataToUpdate = new HashMap<String, StoreEntryMetadata>();
-        for (String key: metadataChangedOnRemote)
+        for (String key: metadataChangedOnRemote) {
+          logger.info("Updating metadata for key " + key);
           metadataToUpdate.put(key, remoteMetadata.get(key));
+        }
         store.updateMetadatas(metadataToUpdate);
       }
     } catch (SocketTimeoutException e) {
-      logger.warn("Error resolving difference (passive). Receive timeout", e);
+      logger.info("Error resolving difference (passive). Receive timeout", e);
     } catch (NetworkException e) {
       logger.warn("Error resolving difference (passive). Network error", e);
     } catch (IOException e) {
       /* Something gone bad... give up this passive cycle */
-      logger.warn("Error resolving difference (passive). Input/Output error", e);
+      logger.info("Error resolving difference (passive). Input/Output error", e);
     } catch (ClassCastException e) {
       logger.warn("Error resolving difference (passive). Unknown data", e);
     } finally {
@@ -320,9 +322,9 @@ public class CloudPushPullAntiEntropyBroadcast extends CloudEnabledAntiEntropyBr
       } catch (NetworkException e) {
         logger.warn("Network error resolving differences", e);
       } catch (SocketTimeoutException e) {
-        logger.warn("Network timeout resolving differences", e);
+        logger.info("Network timeout resolving differences", e);
       } catch (IOException e) {
-        logger.warn("Input/Output error resolving differences", e);
+        logger.info("Input/Output error resolving differences", e);
       } catch (IllegalArgumentException e) {
         logger.warn("Argument error", e);
       } catch (RuntimeException e) {
@@ -344,7 +346,7 @@ public class CloudPushPullAntiEntropyBroadcast extends CloudEnabledAntiEntropyBr
       if (lastCycleTimestamp == 0) lastCycleTimestamp = tentativeTimestamp;
       else lastCycleTimestamp += period * 1000;
 
-      sleepTime = timeUntillNextActiveCycle() * 1000;
+      sleepTime = timeUntillNextActiveCycle();
       try {
         if (sleepTime > 0) Thread.currentThread().sleep(sleepTime);
       } catch (InterruptedException e) {

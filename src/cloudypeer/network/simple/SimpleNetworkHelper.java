@@ -274,7 +274,7 @@ public class SimpleNetworkHelper extends NetworkHelper {
       conn.setSoTimeout(currentTimeout);
       return new SimpleNetworkConnection(conn);
     } catch (IOException e) {
-      logger.warn("Input/Output error connecting.", e);
+      logger.info("Input/Output error connecting.", e);
       try {
         conn.close();
       } catch (IOException ex) {}

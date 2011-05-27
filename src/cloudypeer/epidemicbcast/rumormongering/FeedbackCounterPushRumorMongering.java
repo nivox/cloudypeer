@@ -112,7 +112,7 @@ public class FeedbackCounterPushRumorMongering
    ***********************************************************************/
   private int timeUntillNextActiveCycle() {
     int delta = (int) ((lastCycleTimestamp + (period * 1000)) - System.currentTimeMillis());
-    return (delta > 0) ? (delta / 1000) : 0;
+    return (delta > 0) ? delta : 0;
   }
 
   /* *********************************************************************
@@ -168,7 +168,7 @@ public class FeedbackCounterPushRumorMongering
     }
     catch (IOException e) {
       /* Something gone bad. Abort active cycle */
-      logger.warn("Error pushing news. Input/Output error", e);
+      logger.info("Error pushing news. Input/Output error", e);
     } catch (ClassCastException e) {
       logger.warn("Error pushing news. Unknown data", e);
     } finally {
@@ -259,9 +259,9 @@ public class FeedbackCounterPushRumorMongering
       } catch (NetworkException e) {
         logger.warn("Network error resolving differences", e);
       } catch (SocketTimeoutException e) {
-        logger.warn("Network timeout resolving differences", e);
+        logger.info("Network timeout resolving differences", e);
       } catch (IOException e) {
-        logger.warn("Input/Output error resolving differences", e);
+        logger.info("Input/Output error resolving differences", e);
       } catch (IllegalArgumentException e) {
         logger.warn("Argument error", e);
       } catch (RuntimeException e) {
@@ -270,7 +270,7 @@ public class FeedbackCounterPushRumorMongering
 
       if (isTerminated()) break;
 
-      sleepTime = timeUntillNextActiveCycle() * 1000;
+      sleepTime = timeUntillNextActiveCycle();
       try {
         if (sleepTime > 0) Thread.currentThread().sleep(sleepTime);
       } catch (InterruptedException e) {
