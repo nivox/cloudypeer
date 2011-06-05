@@ -28,6 +28,9 @@ import cloudypeer.cloud.StorageCloud;
 import cloudypeer.cloud.CloudURI;
 import org.apache.log4j.Logger;
 import java.io.Serializable;
+import java.io.File;
+import java.io.PrintStream;
+import java.io.FileOutputStream;
 
 /**
  * Describe class StatisticsNode here.
@@ -63,11 +66,21 @@ public class StatisticsNode {
 
   private StatisticsUpdateHandler updateHandler;
 
+  private PrintStream out;
+
   public StatisticsNode(InetAddress ip, int baseport, String cloudProvider, URI cloudURI, String name)
     throws Exception
   {
     this.netHelper = NetworkHelper.getDefaultInstance(ip, NetworkHelper.findFreePort(baseport, 0));
     this.localNode = netHelper.getLocalNode();
+
+    File logFile = new File(Statistics.getInstance().getBaseDirectory().getPath() + File.separator +
+                            String.format("out-%s_%d.log",
+                                          localNode.getInetAddress().getHostAddress(),
+                                          localNode.getPort()));
+    logFile.createNewFile();
+    this.out = new PrintStream(new FileOutputStream(logFile, true));
+
     this.peerSamplingCloudURI = CloudURI.getInstance(cloudProvider, new URI(cloudURI.toString() + "/" + name +".view"));
     this.cloudCast = CloudCast.getDefaultInstance(localNode, peerSamplingCloudURI);
 
@@ -79,7 +92,7 @@ public class StatisticsNode {
 
     StoreEntryDiffHandler diffHandler = new FakeDiffHandler();
     this.localStore = new SimpleStore(new InMemoryPersistenceHandler(), diffHandler);
-    this.updateHandler = new StatisticsUpdateHandler(localNode);
+    this.updateHandler = new StatisticsUpdateHandler(localNode, out);
     this.localStore.addUpdateHandler(updateHandler);
 
     this.storageCloudCloudURI = CloudURI.getInstance(cloudProvider, cloudURI);
@@ -97,6 +110,9 @@ public class StatisticsNode {
 
     this.antiEntropy.setProtocolData("nethelper", netHelper);
     this.rumorMongering.setProtocolData("nethelper", netHelper);
+
+    this.antiEntropy.setProtocolData("printstream", Statistics.getPrintStream());
+    this.rumorMongering.setProtocolData("printstream", Statistics.getPrintStream());
   }
 
   public void setAntiEntropyPeriod(int period) {
@@ -107,7 +123,12 @@ public class StatisticsNode {
     this.rumorMongering.setPeriod(period);
   }
 
+  public PeerNode getNode() {
+    return this.localNode;
+  }
+
   public void start() throws Exception{
+    out.println("@ starting time=" + System.currentTimeMillis() / 1000);
     netHelper.start();
     cloudCast.start();
     antiEntropy.start();
@@ -115,11 +136,13 @@ public class StatisticsNode {
   }
 
   public void terminate() {
-    netHelper.terminate();
-    cloudCast.terminate();
-    antiEntropy.terminate();
+    out.println("@ terminating time=" + System.currentTimeMillis() / 1000);
+    out.flush();
+    out.close();
     rumorMongering.terminate();
-    updateHandler.close();
+    antiEntropy.terminate();
+    cloudCast.terminate();
+    netHelper.terminate();
   }
 
   public synchronized void addNews(String name, String contentType, Serializable o) throws IOException {

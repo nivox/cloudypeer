@@ -46,6 +46,7 @@ public class Statistics {
 
   private static Statistics instance;
   private static StatisticsUpdateHandler cloudUpdateHandlerInstance;
+  private static PrintStream out;
 
   private final File baseLogDirectory;
   private int networkSize;
@@ -63,10 +64,15 @@ public class Statistics {
 
   private String expName;
   private File logFile;
-  private PrintStream out;
+
+  private PrintStream cloudPrintStream;
 
   public static Statistics getInstance() {
     return instance;
+  }
+
+  public static PrintStream getPrintStream() {
+    return out;
   }
 
   public static StatisticsUpdateHandler getCloudUpdateHandlerInstance() {
@@ -84,7 +90,12 @@ public class Statistics {
       throw new IllegalArgumentException("Log directory not found: " + logDirectoryPath);
 
     expName = baseLogDirectory.getName();
-    cloudUpdateHandlerInstance = new StatisticsUpdateHandler(null);
+
+    File cloudLogFile = new File(baseLogDirectory.getPath() + File.separator + "out-cloud.log");
+
+    cloudLogFile.createNewFile();
+    this.cloudPrintStream = new PrintStream(cloudLogFile);
+    cloudUpdateHandlerInstance = new StatisticsUpdateHandler(null, cloudPrintStream);
 
     this.ip = InetAddress.getByName(ip);
     this.basePort = basePort;
@@ -99,7 +110,7 @@ public class Statistics {
     this.rmPeriod = rmPeriod;
 
     this.logFile = new File(baseLogDirectory.getPath() + File.separator +
-                            String.format("out-controller-%s_%d-log", ip, basePort));
+                            String.format("out-controller-%s_%d.log", ip, basePort));
     this.logFile.createNewFile();
     this.out = new PrintStream(logFile);
   }
@@ -156,12 +167,14 @@ public class Statistics {
             n.start();
             nodeList.add(n);
 
+            print("@ adding node=" + n.getNode().toString());
           }
         } else {
           for (int i=0; i<-nodesToAddRemove; i++) {
             int index = random.nextInt(nodeList.size());
 
             StatisticsNode n = nodeList.remove(index);
+            print("@ removing node=" + n.getNode().toString());
             n.terminate();
           }
         }
@@ -170,20 +183,26 @@ public class Statistics {
 
         // Add news
         if (now > nextNewsTime) {
-          nextNewsTime = now + newsPeriod * 60000;
-          StatisticsNews news = new StatisticsNews();
+          if (nodeList.size() > 0) {
+            nextNewsTime = now + newsPeriod * 60000;
+            StatisticsNews news = new StatisticsNews();
 
-          int index = random.nextInt(nodeList.size());
-          StatisticsNode n = nodeList.get(index);
-          print(String.format("@ adding news_name=%s", news.getName()));
-          n.addNews(news.getName(), StatisticsNews.class.getName(), news);
+            int index = random.nextInt(nodeList.size());
+            StatisticsNode n = nodeList.get(index);
+            print(String.format("@ time=%d adding news_name=%s", System.currentTimeMillis()/1000, news.getName()));
+            n.addNews(news.getName(), StatisticsNews.class.getName(), news);
+          } else {
+            nextNewsTime = now + (random.nextInt(newsPeriod) * 60000);
+          }
         }
 
         Thread.currentThread().sleep(1000);
       }
     }
-
+    print("# Finished, quitting");
     out.close();
+    cloudPrintStream.close();
+    System.exit(0);
   }
 
 

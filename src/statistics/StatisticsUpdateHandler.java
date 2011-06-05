@@ -14,6 +14,7 @@ import java.io.FileWriter;
 import cloudypeer.store.StoreUpdateHandler;
 import org.apache.log4j.Logger;
 import java.io.PrintWriter;
+import java.io.PrintStream;
 
 /**
  * Describe class StatisticsUpdateHandler here.
@@ -29,25 +30,15 @@ public class StatisticsUpdateHandler implements StoreUpdateHandler {
   static Logger logger = Logger.getLogger(StatisticsUpdateHandler.class);
 
   private String node;
-  private File logFile;
-  private PrintWriter out;
+  private PrintStream out;
 
-  public StatisticsUpdateHandler(PeerNode node) throws Exception{
-    String fileName = null;
-    if (node != null) {
+  public StatisticsUpdateHandler(PeerNode node, PrintStream out) throws Exception{
+    this.out = out;
+
+    if (node != null)
       this.node = node.toString();
-      fileName = String.format("out-%s_%d.log",
-                               node.getInetAddress().getHostAddress(),
-                               node.getPort());
-    } else {
+    else
       this.node = "cloud";
-      fileName = "out-cloud.log";
-    }
-
-    File baseDirectory = Statistics.getInstance().getBaseDirectory();
-    this.logFile = new File(baseDirectory.getPath() + File.separator + fileName);
-    this.logFile.createNewFile();
-    this.out = new PrintWriter(new FileWriter(logFile));
   }
 
   public synchronized void notifyUpdate(String[] keys, Store store) {
@@ -68,6 +59,5 @@ public class StatisticsUpdateHandler implements StoreUpdateHandler {
   }
 
   public void close() {
-    this.out.close();
   }
 }
