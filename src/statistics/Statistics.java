@@ -128,7 +128,7 @@ public class Statistics {
   }
 
 
-  public void run() throws Exception {
+  public void run(boolean newsController) throws Exception {
     for (int j=1; j<=iterations; j++) {
       logger.info("Starting iteration " + j);
 
@@ -182,7 +182,7 @@ public class Statistics {
 
 
         // Add news
-        if (now > nextNewsTime) {
+        if (newsController && now > nextNewsTime) {
           if (nodeList.size() > 0) {
             nextNewsTime = now + newsPeriod * 60000;
             StatisticsNews news = new StatisticsNews();
@@ -228,6 +228,7 @@ public class Statistics {
     int newsPeriod = -1;
     int aePeriod = -1;
     int rmPeriod = -1;
+    bool newsController = false;
 
     int count = 0;
     if (args.length <= count) {
@@ -306,13 +307,20 @@ public class Statistics {
       System.exit(1);
     } else rmPeriod = Integer.parseInt(args[count]);
 
+    count++;
+    if (args.length <= count) {
+      usage();
+      System.err.println("Missing news controller setting");
+      System.exit(1);
+    } else newsController = Boolean.parseBoolean(args[count]);
+
     logger.info("Initializing test");
     Statistics stats = new Statistics(logDirectoryPath, ip, basePort, cloudProvider, cloudURI,
                                       netsize, duration, iterations, newsPeriod, aePeriod,
                                       rmPeriod);
 
     logger.info("Running test");
-    stats.run();
+    stats.run(newsController);
   }
 
 }
