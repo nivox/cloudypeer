@@ -28,6 +28,7 @@ import cloudypeer.store.StoreEntryMetadata;
 import cloudypeer.store.StoreException;
 import org.apache.log4j.Logger;
 import java.net.SocketTimeoutException;
+import java.io.PrintStream;
 
 
 /**
@@ -63,6 +64,8 @@ public class CloudPushPullAntiEntropyBroadcast extends CloudEnabledAntiEntropyBr
    * Flag for bootstrap phase
    */
   private boolean bootstrap = true;
+
+  private PrintStream out = null;
 
   /* *********************************************************************
    * Constructors
@@ -144,6 +147,8 @@ public class CloudPushPullAntiEntropyBroadcast extends CloudEnabledAntiEntropyBr
       /* Step 4: pushing locally fresher entries */
       StoreEntry[] toPush = store.getStoreEntries(cmpresult.getKeyFresherOnLocalNode());
       logger.trace(String.format("Pushing %d entries to cloud", toPush.length));
+      if (out != null)
+        out.println(String.format("@ anti-entropy node=%s push=%d cloud", localNode, toPush.length));
       cloudStore.updateStoreEntries(toPush);
 
       logger.trace("Updating the local store...");
@@ -170,6 +175,8 @@ public class CloudPushPullAntiEntropyBroadcast extends CloudEnabledAntiEntropyBr
       StoreEntryDiffData[] diffDataIn = (StoreEntryDiffData[]) conn.receive(timeUntillNextActiveCycle());
       if (diffDataIn == null) return;
       StoreEntryDiff[] toPush = store.diffStoreEntries(diffDataIn);
+      if (out != null)
+        out.println(String.format("@ anti-entropy node=%s push=%d active", localNode, toPush.length));
       conn.send(toPush);
 
       /* PULL phase: in Map<String, StoreEntryMetadata>, in String[], out StoreEntryDiffData[], in
@@ -240,6 +247,8 @@ public class CloudPushPullAntiEntropyBroadcast extends CloudEnabledAntiEntropyBr
       conn.send(cmpresult.getKeyFresherOnLocalNode());
       StoreEntryDiffData[] diffDataIn = (StoreEntryDiffData[]) conn.receive(timeUntillNextActiveCycle());
       StoreEntryDiff[] toPush = store.diffStoreEntries(diffDataIn);
+      if (out != null)
+        out.println(String.format("@ anti-entropy node=%s push=%d passive", localNode, toPush.length));
       conn.send(toPush);
       conn.close();
 
@@ -290,6 +299,10 @@ public class CloudPushPullAntiEntropyBroadcast extends CloudEnabledAntiEntropyBr
     }
 
     netHelper.registerClient(this, 0);
+
+    try {
+      out = (PrintStream) this.getProtocolData("printstream");
+    } catch (Exception e) {}
   }
 
   /*
@@ -338,7 +351,10 @@ public class CloudPushPullAntiEntropyBroadcast extends CloudEnabledAntiEntropyBr
           Thread.currentThread().sleep(BOOTSTRAP_PERIOD);
           continue;
         } catch (InterruptedException e) {}
+      } else if (success) {
       }
+
+
 
       if (isTerminated()) break;
 

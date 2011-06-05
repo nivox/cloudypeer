@@ -28,6 +28,7 @@ import cloudypeer.store.StoreEntryDiffData;
 import cloudypeer.store.StoreEntryMetadata;
 import cloudypeer.store.StoreUpdateHandler;
 import org.apache.log4j.Logger;
+import java.io.PrintStream;
 
 
 /**
@@ -64,6 +65,8 @@ public class FeedbackCounterPushRumorMongering
    * Map that relates news with their associated counter
    */
   private Map<String, Integer> newsMap = new HashMap<String, Integer>();
+
+  private PrintStream out = null;
 
   /* *********************************************************************
    * Constructors
@@ -138,6 +141,8 @@ public class FeedbackCounterPushRumorMongering
       StoreEntryDiffData[] diffData = (StoreEntryDiffData[]) conn.receive(timeUntillNextActiveCycle());
       if (diffData == null) return;
       StoreEntryDiff[] toPush = store.diffStoreEntries(diffData);
+      if (out != null)
+        out.println(String.format("@ rumor-mongering node=%s push=%d", localNode, toPush.length));
       logger.trace("Pushing news: sending diff");
       conn.send(toPush);
       logger.trace("Pushing news: closing connection");
@@ -231,6 +236,10 @@ public class FeedbackCounterPushRumorMongering
       throw new GossipProtocolException("NetworkHelper instance not passed nor configured");
     }
 
+    try {
+      out = (PrintStream) this.getProtocolData("printstream");
+    } catch (Exception e) {}
+
     netHelper.registerClient(this, 1);
     store.addUpdateHandler(this);
   }
@@ -254,6 +263,7 @@ public class FeedbackCounterPushRumorMongering
             pushNews((PeerNode) remote);
           }
         }
+
       } catch (ClassCastException e) {
         logger.error("Error: remote peer class not supported", e);
       } catch (NetworkException e) {
