@@ -91,7 +91,8 @@ public class Statistics {
 
     expName = baseLogDirectory.getName();
 
-    File cloudLogFile = new File(baseLogDirectory.getPath() + File.separator + "out-cloud.log");
+    File cloudLogFile = new File(baseLogDirectory.getPath() + File.separator +
+                                 String.format("out-cloud_%s_%d.log", ip, basePort));
 
     cloudLogFile.createNewFile();
     this.cloudPrintStream = new PrintStream(cloudLogFile);
@@ -228,7 +229,7 @@ public class Statistics {
     int newsPeriod = -1;
     int aePeriod = -1;
     int rmPeriod = -1;
-    bool newsController = false;
+    boolean newsController = false;
 
     int count = 0;
     if (args.length <= count) {
