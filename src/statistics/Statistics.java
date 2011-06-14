@@ -15,6 +15,8 @@ import org.apache.log4j.Logger;
 import java.io.FileWriter;
 import java.io.PrintWriter;
 import java.io.PrintStream;
+import java.util.Date;
+import jgrapes.JGrapesException;
 
 
 class StatisticsNews implements Serializable {
@@ -130,6 +132,8 @@ public class Statistics {
 
 
   public void run(boolean newsController) throws Exception {
+    long nextNewsTime = System.currentTimeMillis() + (random.nextInt(newsPeriod) * 60000);
+    print("# first news addition at " + new Date(nextNewsTime));
     for (int j=1; j<=iterations; j++) {
       logger.info("Starting iteration " + j);
 
@@ -138,7 +142,6 @@ public class Statistics {
       long startTime =  System.currentTimeMillis();
       long endTime = startTime + (duration * 60000);
       int lengthTime = (int) (endTime - startTime);
-      long nextNewsTime = startTime + (random.nextInt(newsPeriod) * 60000);
       int currentNodes = 0;
       int progress = 0;
       int tmp;
@@ -161,14 +164,23 @@ public class Statistics {
 
         // Add remove nodes
         if (nodesToAddRemove > 0) {
-          for (int i=0; i<nodesToAddRemove; i++) {
-            StatisticsNode n = new StatisticsNode(ip, basePort, cloudProvider, cloudURI, expName);
-            n.setAntiEntropyPeriod(aePeriod);
-            n.setRumorMongeringPeriod(rmPeriod);
-            n.start();
-            nodeList.add(n);
+          int temp = 0;
 
-            print("@ adding node=" + n.getNode().toString());
+          try {
+            for (int i=0; i<nodesToAddRemove; i++) {
+              StatisticsNode n = new StatisticsNode(ip, basePort, cloudProvider, cloudURI, expName);
+              n.setAntiEntropyPeriod(aePeriod);
+              n.setRumorMongeringPeriod(rmPeriod);
+              n.start();
+              nodeList.add(n);
+
+              print("@ adding node=" + n.getNode().toString());
+              temp++;
+            }
+          } catch (JGrapesException e) {
+            print("# error instantiating node: " + e.getMessage());
+            currentNodes += temp;
+            continue;
           }
         } else {
           for (int i=0; i<-nodesToAddRemove; i++) {
@@ -192,8 +204,10 @@ public class Statistics {
             StatisticsNode n = nodeList.get(index);
             print(String.format("@ time=%d adding news_name=%s", System.currentTimeMillis()/1000, news.getName()));
             n.addNews(news.getName(), StatisticsNews.class.getName(), news);
+            print("# next news addition at " + new Date(nextNewsTime));
           } else {
             nextNewsTime = now + (random.nextInt(newsPeriod) * 60000);
+            print("# postponing news addition to " + new Date(nextNewsTime));
           }
         }
 
@@ -321,7 +335,13 @@ public class Statistics {
                                       rmPeriod);
 
     logger.info("Running test");
-    stats.run(newsController);
-  }
 
+    try {
+      stats.run(newsController);
+    } catch (Exception e){
+      logger.error("Main received uncatched exception! Exiting");
+      e.printStackTrace();
+      System.exit(666);
+    }
+  }
 }
