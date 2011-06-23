@@ -124,10 +124,23 @@ public class Statistics {
   }
 
 
-  private int netSizeAtTime(int currentTime, int length) {
+  private int netSizeAtTimeSin(int currentTime, int length) {
     double x;
     x = (((double) currentTime) / length) * 180;
     return (int)Math.round((Math.sin(Math.toRadians(x)) * networkSize));
+  }
+
+  private int netSizeAtTimeConst(long currentTime, long length) {
+    long base = 5000;
+    int nodes;
+
+    if (length < base * networkSize) {
+      base = length/networkSize;
+    }
+
+    nodes = (int) (currentTime/base + 1);
+    if (nodes > networkSize) nodes = networkSize;
+    return nodes;
   }
 
 
@@ -149,7 +162,7 @@ public class Statistics {
       while ((now = System.currentTimeMillis()) < endTime) {
         int relativeTime = (int) (now - startTime);
 
-        nodesToAddRemove = netSizeAtTime(relativeTime, lengthTime) - currentNodes;
+        nodesToAddRemove = netSizeAtTimeConst(relativeTime, lengthTime) - currentNodes;
         tmp = (int)(((double)(relativeTime) / lengthTime) * 100);
 
         // Log informations

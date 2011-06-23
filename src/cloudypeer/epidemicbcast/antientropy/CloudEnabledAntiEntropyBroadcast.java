@@ -111,4 +111,18 @@ public abstract class CloudEnabledAntiEntropyBroadcast extends EpidemicBroadcast
 
     return DynamicProviderHelper.newInstance(antiEntropyProviders, provider, signature, params);
   }
+
+  /* *********************************************************************
+   * Getters/Setters
+   ***********************************************************************/
+  public Store getCloudStore() {
+    return cloudStore;
+  }
+
+  public void setCloudStore(Store cloudStore) {
+    if (wasStarted())
+      throw new IllegalStateException("Cloud antientropy broadcast protocol already started");
+
+    this.cloudStore = cloudStore;
+  }
 }

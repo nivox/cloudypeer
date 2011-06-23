@@ -143,6 +143,7 @@ public class CloudPushPullAntiEntropyBroadcast extends CloudEnabledAntiEntropyBr
       /* Step 3: reading cloud's fresher entries */
       StoreEntry[] toPull = cloudStore.getStoreEntries(cmpresult.getKeysFresherOnRemoteNode());
       logger.trace(String.format("Read %d entries from cloud", toPull.length));
+      out.println(String.format("@ anti-entropy node=%s pull=%d cloud", localNode, toPull.length));
 
       /* Step 4: pushing locally fresher entries */
       StoreEntry[] toPush = store.getStoreEntries(cmpresult.getKeyFresherOnLocalNode());

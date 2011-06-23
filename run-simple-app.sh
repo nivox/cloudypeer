@@ -15,18 +15,18 @@
 # the following variables:
 
 # Cloud provider implementation: mysql, amazons3
-CLOUD_PROVIDER=
+CLOUD_PROVIDER=mysql
 
 # URI of the cloud used for the peer sampling
 # i.e. PS_CLOUD="mysql://user:pass@localhost/database/bucket/key"
-PS_CLOUD=
+PS_CLOUD=mysql://nivox@localhost/cloud/testbucket/view
 
 # URI of the cloud used for the app store
 # i.e. PS_CLOUD="mysql://user:pass@localhost/database/bucket"
-STORE_CLOUD=
+STORE_CLOUD=mysql://nivox@localhost/cloud/testbucket
 
 # Path of the directory holding the jgrapes distribution (native libraries)
-JGRAPES_DIST=
+JGRAPES_DIST=../grapes/jgrapes/dist/
 
 #============================================================
 # DON'T EDIT PAST THIS UNLESS YOU KNOW WHAT YOU'RE DOING
